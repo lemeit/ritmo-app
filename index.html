@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Ritmo — Ayuno & Agua</title>
+<meta name="theme-color" content="#0B0E13">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ritmo">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0E13;
+    --surface:#141922;
+    --surface-2:#1C232F;
+    --border:#242C3A;
+    --text:#E8EAED;
+    --text-dim:#8891A0;
+    --text-faint:#4E5768;
+    --fast:#8B7FFF;
+    --fast-dim:#8B7FFF33;
+    --water:#35C2E8;
+    --water-dim:#35C2E833;
+    --eat:#4ADE80;
+    --danger:#FF6B6B;
+    --radius:20px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Sora',sans-serif;
+    overscroll-behavior:none;
+    padding-bottom:env(safe-area-inset-bottom);
+    padding-top:env(safe-area-inset-top);
+    -webkit-user-select:none;
+    user-select:none;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;}
+  #app{
+    max-width:460px;
+    margin:0 auto;
+    padding:20px 18px 40px;
+    min-height:100vh;
+  }
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:22px;
+  }
+  header .brand{
+    font-weight:800;
+    font-size:19px;
+    letter-spacing:-0.02em;
+  }
+  header .brand span{color:var(--fast);}
+  #gearBtn{
+    background:var(--surface);
+    border:1px solid var(--border);
+    width:38px; height:38px;
+    border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text-dim);
+    cursor:pointer;
+  }
+  #gearBtn:active{background:var(--surface-2);}
+
+  .card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:22px;
+    margin-bottom:16px;
+  }
+
+  /* --- Fasting ring --- */
+  .fast-card{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
+  }
+  .ring-wrap{
+    position:relative;
+    width:230px; height:230px;
+    margin:6px 0 18px;
+  }
+  .ring-wrap svg{transform:rotate(-90deg);}
+  .ring-center{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+  }
+  .ring-state{
+    font-size:12px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--text-dim);
+    margin-bottom:6px;
+    font-weight:600;
+  }
+  .ring-time{
+    font-size:38px;
+    font-weight:700;
+    letter-spacing:-0.02em;
+    font-variant-numeric:tabular-nums;
+  }
+  .ring-sub{
+    font-size:12px;
+    color:var(--text-faint);
+    margin-top:6px;
+  }
+  .fast-actions{
+    display:flex; gap:10px; width:100%;
+  }
+  .btn{
+    flex:1;
+    border:none;
+    border-radius:14px;
+    padding:15px 12px;
+    font-family:'Sora',sans-serif;
+    font-weight:700;
+    font-size:15px;
+    cursor:pointer;
+    transition:transform .08s ease;
+  }
+  .btn:active{transform:scale(0.97);}
+  .btn-fast{background:var(--fast); color:#0B0E13;}
+  .btn-eat{background:var(--surface-2); color:var(--text); border:1px solid var(--border);}
+  .goal-row{
+    display:flex; gap:8px; margin-top:14px; width:100%;
+    justify-content:center;
+  }
+  .goal-chip{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px; font-weight:600;
+    padding:6px 12px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    color:var(--text-dim);
+    cursor:pointer;
+  }
+  .goal-chip.active{
+    background:var(--fast-dim);
+    border-color:var(--fast);
+    color:var(--fast);
+  }
+
+  /* --- Water card --- */
+  .water-card .row-top{
+    display:flex; justify-content:space-between; align-items:baseline;
+    margin-bottom:14px;
+  }
+  .water-card h3{
+    margin:0; font-size:14px; text-transform:uppercase;
+    letter-spacing:0.1em; color:var(--text-dim); font-weight:600;
+  }
+  .water-amount{
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700; font-size:20px;
+  }
+  .water-amount span{color:var(--text-faint); font-size:13px; font-weight:500;}
+  .water-bar{
+    height:14px;
+    background:var(--surface-2);
+    border-radius:999px;
+    overflow:hidden;
+    margin-bottom:16px;
+    border:1px solid var(--border);
+  }
+  .water-fill{
+    height:100%;
+    background:linear-gradient(90deg, var(--water), #5EE0FF);
+    width:0%;
+    transition:width .35s ease;
+    border-radius:999px;
+  }
+  .water-actions{display:flex; gap:10px;}
+  .water-btn{
+    flex:1;
+    background:var(--water-dim);
+    border:1px solid var(--water);
+    color:var(--water);
+    border-radius:14px;
+    padding:13px 8px;
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+  }
+  .water-btn:active{transform:scale(0.96);}
+  .water-undo{
+    text-align:center; margin-top:10px;
+    font-size:12px; color:var(--text-faint);
+    cursor:pointer;
+  }
+
+  /* --- Week strip --- */
+  .week-card h3{
+    margin:0 0 14px; font-size:14px; text-transform:uppercase;
+    letter-spacing:0.1em; color:var(--text-dim); font-weight:600;
+  }
+  .week-strip{display:flex; justify-content:space-between;}
+  .day-cell{display:flex; flex-direction:column; align-items:center; gap:8px;}
+  .day-dot{
+    width:30px; height:30px; border-radius:9px;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .day-dot.hit{background:var(--fast); }
+  .day-dot.partial{background:var(--fast-dim); border-color:var(--fast);}
+  .day-label{font-size:10px; color:var(--text-faint); text-transform:uppercase; font-family:'JetBrains Mono',monospace;}
+
+  /* --- Modal --- */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(0,0,0,.55);
+    display:none; align-items:flex-end; justify-content:center;
+    z-index:50;
+  }
+  .modal-backdrop.open{display:flex;}
+  .modal{
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:22px 22px 0 0;
+    width:100%; max-width:460px;
+    padding:22px 20px calc(24px + env(safe-area-inset-bottom));
+  }
+  .modal h2{margin:0 0 18px; font-size:17px;}
+  .field{margin-bottom:18px;}
+  .field label{
+    display:block; font-size:12px; color:var(--text-dim);
+    text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px; font-weight:600;
+  }
+  .stepper{display:flex; align-items:center; gap:14px;}
+  .stepper button{
+    width:40px; height:40px; border-radius:12px;
+    background:var(--surface-2); border:1px solid var(--border);
+    color:var(--text); font-size:18px; font-weight:700; cursor:pointer;
+  }
+  .stepper .val{
+    font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700;
+    min-width:70px; text-align:center;
+  }
+  .modal-close{
+    width:100%; padding:14px; border:none; border-radius:14px;
+    background:var(--fast); color:#0B0E13; font-weight:700; font-size:15px;
+    cursor:pointer; margin-top:6px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">Rit<span>mo</span></div>
+    <div id="gearBtn">⚙</div>
+  </header>
+
+  <div class="card fast-card">
+    <div class="ring-wrap">
+      <svg width="230" height="230" viewBox="0 0 230 230">
+        <circle cx="115" cy="115" r="100" fill="none" stroke="#1C232F" stroke-width="14"/>
+        <circle id="ringProgress" cx="115" cy="115" r="100" fill="none" stroke="var(--fast)" stroke-width="14" stroke-linecap="round" stroke-dasharray="628" stroke-dashoffset="628"/>
+      </svg>
+      <div class="ring-center">
+        <div class="ring-state" id="ringState">Sin iniciar</div>
+        <div class="ring-time mono" id="ringTime">00:00</div>
+        <div class="ring-sub" id="ringSub">Tocá "Empezar ayuno"</div>
+      </div>
+    </div>
+    <div class="fast-actions">
+      <button class="btn btn-fast" id="fastToggleBtn">Empezar ayuno</button>
+    </div>
+    <div class="goal-row" id="goalRow">
+      <div class="goal-chip mono" data-h="16">16:8</div>
+      <div class="goal-chip mono" data-h="18">18:6</div>
+      <div class="goal-chip mono" data-h="20">20:4</div>
+      <div class="goal-chip mono" data-h="24">24h</div>
+    </div>
+  </div>
+
+  <div class="card water-card">
+    <div class="row-top">
+      <h3>Agua de hoy</h3>
+      <div class="water-amount mono"><span id="waterCurrent">0</span><span> / <span id="waterGoalLabel">2000</span> ml</span></div>
+    </div>
+    <div class="water-bar"><div class="water-fill" id="waterFill"></div></div>
+    <div class="water-actions">
+      <button class="water-btn" data-ml="250">+250 ml</button>
+      <button class="water-btn" data-ml="500">+500 ml</button>
+      <button class="water-btn" data-ml="1000">+1 L</button>
+    </div>
+    <div class="water-undo" id="waterUndo">deshacer último</div>
+  </div>
+
+  <div class="card week-card">
+    <h3>Últimos 7 días</h3>
+    <div class="week-strip" id="weekStrip"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <h2>Ajustes</h2>
+    <div class="field">
+      <label>Meta de agua diaria (ml)</label>
+      <div class="stepper">
+        <button id="waterMinus">−</button>
+        <div class="val mono" id="waterGoalVal">2000</div>
+        <button id="waterPlus">+</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Meta de ayuno (horas)</label>
+      <div class="stepper">
+        <button id="fastMinus">−</button>
+        <div class="val mono" id="fastGoalVal">16</div>
+        <button id="fastPlus">+</button>
+      </div>
+    </div>
+    <button class="modal-close" id="modalClose">Listo</button>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const todayKey = () => new Date().toISOString().slice(0,10);
+
+const DEFAULTS = { waterGoalMl: 2000, fastGoalHours: 16 };
+let settings = JSON.parse(localStorage.getItem('ritmo_settings') || 'null') || {...DEFAULTS};
+let fastState = JSON.parse(localStorage.getItem('ritmo_fastState') || 'null') || { active:false, startedAt:null };
+let fastHistory = JSON.parse(localStorage.getItem('ritmo_fastHistory') || '[]'); // [{date, hours, goalHours}]
+let waterLog = JSON.parse(localStorage.getItem('ritmo_waterLog') || '{}'); // { '2026-07-13': [250,500,...] }
+
+function save(){
+  localStorage.setItem('ritmo_settings', JSON.stringify(settings));
+  localStorage.setItem('ritmo_fastState', JSON.stringify(fastState));
+  localStorage.setItem('ritmo_fastHistory', JSON.stringify(fastHistory));
+  localStorage.setItem('ritmo_waterLog', JSON.stringify(waterLog));
+}
+
+function fmtHM(ms){
+  const totalMin = Math.max(0, Math.floor(ms/60000));
+  const h = Math.floor(totalMin/60);
+  const m = totalMin % 60;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+}
+
+const CIRC = 2 * Math.PI * 100;
+
+function renderFast(){
+  const goalRow = $('#goalRow');
+  $$('.goal-chip').forEach(c=>{
+    c.classList.toggle('active', Number(c.dataset.h) === settings.fastGoalHours);
+  });
+  $('#fastGoalVal').textContent = settings.fastGoalHours;
+
+  const ring = $('#ringProgress');
+  const stateEl = $('#ringState');
+  const timeEl = $('#ringTime');
+  const subEl = $('#ringSub');
+  const btn = $('#fastToggleBtn');
+
+  if(fastState.active){
+    const elapsed = Date.now() - fastState.startedAt;
+    const goalMs = settings.fastGoalHours * 3600000;
+    const pct = Math.min(1, elapsed/goalMs);
+    ring.style.stroke = 'var(--fast)';
+    ring.setAttribute('stroke-dasharray', CIRC);
+    ring.setAttribute('stroke-dashoffset', CIRC * (1-pct));
+    stateEl.textContent = elapsed >= goalMs ? 'Meta cumplida' : 'Ayunando';
+    stateEl.style.color = elapsed >= goalMs ? 'var(--eat)' : '';
+    timeEl.textContent = fmtHM(elapsed);
+    const endsAt = new Date(fastState.startedAt + goalMs);
+    subEl.textContent = elapsed >= goalMs
+      ? 'Podés romper el ayuno cuando quieras'
+      : 'Meta: ' + endsAt.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+    btn.textContent = 'Terminar ayuno';
+    btn.className = 'btn btn-eat';
+  } else {
+    ring.setAttribute('stroke-dasharray', CIRC);
+    ring.setAttribute('stroke-dashoffset', CIRC);
+    stateEl.textContent = 'Sin iniciar';
+    stateEl.style.color = '';
+    timeEl.textContent = '00:00';
+    subEl.textContent = 'Tocá "Empezar ayuno"';
+    btn.textContent = 'Empezar ayuno';
+    btn.className = 'btn btn-fast';
+  }
+}
+
+function renderWater(){
+  const key = todayKey();
+  const entries = waterLog[key] || [];
+  const total = entries.reduce((a,b)=>a+b,0);
+  $('#waterCurrent').textContent = total;
+  $('#waterGoalLabel').textContent = settings.waterGoalMl;
+  $('#waterGoalVal').textContent = settings.waterGoalMl;
+  const pct = Math.min(100, (total/settings.waterGoalMl)*100);
+  $('#waterFill').style.width = pct + '%';
+  $('#waterUndo').style.visibility = entries.length ? 'visible' : 'hidden';
+}
+
+function renderWeek(){
+  const strip = $('#weekStrip');
+  strip.innerHTML = '';
+  const days = ['D','L','M','M','J','V','S'];
+  for(let i=6;i>=0;i--){
+    const d = new Date();
+    d.setDate(d.getDate()-i);
+    const key = d.toISOString().slice(0,10);
+    const rec = fastHistory.find(h=>h.date===key);
+    const cell = document.createElement('div');
+    cell.className = 'day-cell';
+    const dot = document.createElement('div');
+    dot.className = 'day-dot';
+    if(rec){
+      dot.classList.add(rec.hours >= rec.goalHours ? 'hit' : 'partial');
+    }
+    const label = document.createElement('div');
+    label.className = 'day-label';
+    label.textContent = days[d.getDay()];
+    cell.appendChild(dot);
+    cell.appendChild(label);
+    strip.appendChild(cell);
+  }
+}
+
+function renderAll(){ renderFast(); renderWater(); renderWeek(); }
+
+// --- Fast toggle ---
+$('#fastToggleBtn').addEventListener('click', ()=>{
+  if(fastState.active){
+    const elapsedH = (Date.now() - fastState.startedAt) / 3600000;
+    const key = todayKey();
+    const existing = fastHistory.find(h=>h.date===key);
+    if(existing){ existing.hours = Math.max(existing.hours, elapsedH); }
+    else { fastHistory.push({date:key, hours: elapsedH, goalHours: settings.fastGoalHours}); }
+    if(fastHistory.length > 30) fastHistory = fastHistory.slice(-30);
+    fastState = {active:false, startedAt:null};
+  } else {
+    fastState = {active:true, startedAt: Date.now()};
+  }
+  save(); renderAll();
+});
+
+$('#goalRow').addEventListener('click', e=>{
+  const chip = e.target.closest('.goal-chip');
+  if(!chip) return;
+  settings.fastGoalHours = Number(chip.dataset.h);
+  save(); renderFast();
+});
+
+// --- Water ---
+$$('.water-btn').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    const key = todayKey();
+    if(!waterLog[key]) waterLog[key] = [];
+    waterLog[key].push(Number(b.dataset.ml));
+    save(); renderWater();
+  });
+});
+$('#waterUndo').addEventListener('click', ()=>{
+  const key = todayKey();
+  if(waterLog[key] && waterLog[key].length){
+    waterLog[key].pop();
+    save(); renderWater();
+  }
+});
+
+// --- Modal / settings ---
+$('#gearBtn').addEventListener('click', ()=>{
+  $('#waterGoalVal').textContent = settings.waterGoalMl;
+  $('#fastGoalVal').textContent = settings.fastGoalHours;
+  $('#modalBackdrop').classList.add('open');
+});
+$('#modalClose').addEventListener('click', ()=> $('#modalBackdrop').classList.remove('open'));
+$('#modalBackdrop').addEventListener('click', e=>{ if(e.target.id==='modalBackdrop') $('#modalBackdrop').classList.remove('open'); });
+$('#waterPlus').addEventListener('click', ()=>{ settings.waterGoalMl += 250; save(); $('#waterGoalVal').textContent = settings.waterGoalMl; renderWater(); });
+$('#waterMinus').addEventListener('click', ()=>{ settings.waterGoalMl = Math.max(250, settings.waterGoalMl-250); save(); $('#waterGoalVal').textContent = settings.waterGoalMl; renderWater(); });
+$('#fastPlus').addEventListener('click', ()=>{ settings.fastGoalHours = Math.min(48, settings.fastGoalHours+1); save(); $('#fastGoalVal').textContent = settings.fastGoalHours; renderFast(); });
+$('#fastMinus').addEventListener('click', ()=>{ settings.fastGoalHours = Math.max(1, settings.fastGoalHours-1); save(); $('#fastGoalVal').textContent = settings.fastGoalHours; renderFast(); });
+
+renderAll();
+setInterval(()=>{ if(fastState.active) renderFast(); }, 1000*30);
+
+// --- PWA service worker ---
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>

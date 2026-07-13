@@ -1,0 +1,15 @@
+{
+  "name": "Ritmo — Ayuno & Agua",
+  "short_name": "Ritmo",
+  "description": "Registro minimalista de ayuno intermitente e ingesta de agua",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0B0E13",
+  "theme_color": "#0B0E13",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
