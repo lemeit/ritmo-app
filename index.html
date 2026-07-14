@@ -9,7 +9,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Ritmo">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon.svg">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-512.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -254,10 +255,65 @@
     background:var(--fast); color:#0B0E13; font-weight:700; font-size:15px;
     cursor:pointer; margin-top:6px;
   }
+
+  /* --- Auth screen --- */
+  #authScreen{
+    min-height:100vh;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    padding:24px;
+    text-align:center;
+  }
+  #authScreen .mark{width:64px; height:64px; margin-bottom:18px;}
+  #authScreen h1{font-size:20px; margin:0 0 8px;}
+  #authScreen p{color:var(--text-dim); font-size:14px; margin:0 0 26px; max-width:280px;}
+  #authForm{width:100%; max-width:300px; display:flex; flex-direction:column; gap:12px;}
+  #authEmail{
+    width:100%; padding:14px 16px; border-radius:14px;
+    background:var(--surface); border:1px solid var(--border);
+    color:var(--text); font-family:'Sora',sans-serif; font-size:15px;
+    -webkit-user-select:text; user-select:text;
+  }
+  #authEmail:focus{outline:none; border-color:var(--fast);}
+  #authMsg{font-size:13px; color:var(--text-faint); min-height:18px;}
+  #authMsg.error{color:var(--danger);}
+  #authMsg.ok{color:var(--eat);}
+  #logoutRow{text-align:center; margin-top:4px;}
+  #logoutBtn{
+    background:none; border:none; color:var(--text-faint);
+    font-size:12px; text-decoration:underline; cursor:pointer;
+    padding:6px;
+  }
+  .hidden{display:none !important;}
+  #loadingScreen{
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    color:var(--text-faint); font-size:13px;
+  }
 </style>
 </head>
 <body>
-<div id="app">
+
+<div id="loadingScreen">Cargando…</div>
+
+<div id="authScreen" class="hidden">
+  <svg class="mark" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="100" cy="100" r="92" fill="#FFFFFF" stroke="#2A7A6E" stroke-width="8"/>
+    <path d="M34,128 L72,128" fill="none" stroke="#D85A30" stroke-width="16" stroke-linecap="round"/>
+    <path d="M72,128 Q68,88 100,48" fill="none" stroke="#2A7A6E" stroke-width="16" stroke-linecap="round"/>
+    <path d="M100,48 Q132,88 128,128" fill="none" stroke="#2A7A6E" stroke-width="16" stroke-linecap="round"/>
+    <path d="M128,128 L166,128" fill="none" stroke="#D85A30" stroke-width="16" stroke-linecap="round"/>
+    <path d="M100,124 L100,66" fill="none" stroke="#2A7A6E" stroke-width="7" stroke-linecap="round"/>
+  </svg>
+  <h1>Rit<span style="color:var(--fast)">mo</span></h1>
+  <p>Ingresá tu email y te mandamos un link para entrar, sin contraseña.</p>
+  <form id="authForm">
+    <input id="authEmail" type="email" placeholder="tu@email.com" autocomplete="email" required>
+    <button class="btn btn-fast" type="submit" id="authSubmitBtn">Enviar link de acceso</button>
+    <div id="authMsg"></div>
+  </form>
+</div>
+
+<div id="app" class="hidden">
   <header>
     <div class="brand">Rit<span>mo</span></div>
     <div id="gearBtn">⚙</div>
@@ -326,25 +382,131 @@
       </div>
     </div>
     <button class="modal-close" id="modalClose">Listo</button>
+    <div id="logoutRow"><button id="logoutBtn">Cerrar sesión</button></div>
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
 const todayKey = () => new Date().toISOString().slice(0,10);
 
-const DEFAULTS = { waterGoalMl: 2000, fastGoalHours: 16 };
-let settings = JSON.parse(localStorage.getItem('ritmo_settings') || 'null') || {...DEFAULTS};
-let fastState = JSON.parse(localStorage.getItem('ritmo_fastState') || 'null') || { active:false, startedAt:null };
-let fastHistory = JSON.parse(localStorage.getItem('ritmo_fastHistory') || '[]'); // [{date, hours, goalHours}]
-let waterLog = JSON.parse(localStorage.getItem('ritmo_waterLog') || '{}'); // { '2026-07-13': [250,500,...] }
+const sb = supabase.createClient(window.RITMO_CONFIG.SUPABASE_URL, window.RITMO_CONFIG.SUPABASE_ANON_KEY);
 
-function save(){
-  localStorage.setItem('ritmo_settings', JSON.stringify(settings));
-  localStorage.setItem('ritmo_fastState', JSON.stringify(fastState));
-  localStorage.setItem('ritmo_fastHistory', JSON.stringify(fastHistory));
-  localStorage.setItem('ritmo_waterLog', JSON.stringify(waterLog));
+const DEFAULTS = { waterGoalMl: 2000, fastGoalHours: 16 };
+let settings = {...DEFAULTS};
+let fastState = { active:false, startedAt:null, id:null };
+let fastHistory = []; // [{date, hours, goalHours}]  (derivado de ritmo_ayunos)
+let waterLog = {};     // { '2026-07-13': [{id, ml}, ...] }
+let userId = null;
+
+// ---------- Auth ----------
+async function initAuth(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(session){ await enterApp(session); }
+  else { showAuthScreen(); }
+
+  sb.auth.onAuthStateChange((event, session)=>{
+    if(event === 'SIGNED_IN' && session){ enterApp(session); }
+    if(event === 'SIGNED_OUT'){ location.reload(); }
+  });
+}
+
+function showAuthScreen(){
+  $('#loadingScreen').classList.add('hidden');
+  $('#app').classList.add('hidden');
+  $('#authScreen').classList.remove('hidden');
+}
+
+async function enterApp(session){
+  userId = session.user.id;
+  $('#authScreen').classList.add('hidden');
+  $('#loadingScreen').classList.remove('hidden');
+  await loadAll();
+  $('#loadingScreen').classList.add('hidden');
+  $('#app').classList.remove('hidden');
+  renderAll();
+  setInterval(()=>{ if(fastState.active) renderFast(); }, 1000*30);
+}
+
+$('#authForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const email = $('#authEmail').value.trim();
+  const msg = $('#authMsg');
+  const btn = $('#authSubmitBtn');
+  if(!email) return;
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  msg.className = ''; msg.textContent = '';
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options:{ emailRedirectTo: location.origin + location.pathname }
+  });
+  btn.disabled = false; btn.textContent = 'Enviar link de acceso';
+  if(error){
+    msg.className = 'error';
+    msg.textContent = 'No se pudo enviar el link: ' + error.message;
+  } else {
+    msg.className = 'ok';
+    msg.textContent = 'Revisá tu email y tocá el link para entrar.';
+  }
+});
+
+$('#logoutBtn').addEventListener('click', async ()=>{
+  $('#modalBackdrop').classList.remove('open');
+  await sb.auth.signOut();
+});
+
+// ---------- Data layer (Supabase) ----------
+async function loadAll(){
+  await Promise.all([loadConfig(), loadActiveFast(), loadWeekHistory(), loadTodayWater()]);
+}
+
+async function loadConfig(){
+  const { data } = await sb.from('ritmo_config').select('*').eq('user_id', userId).maybeSingle();
+  if(data){
+    settings = { waterGoalMl: data.meta_agua_ml, fastGoalHours: Number(data.meta_ayuno_horas) };
+  } else {
+    await sb.from('ritmo_config').insert({ user_id:userId, meta_agua_ml: DEFAULTS.waterGoalMl, meta_ayuno_horas: DEFAULTS.fastGoalHours });
+  }
+}
+
+async function saveConfig(){
+  await sb.from('ritmo_config').upsert({
+    user_id:userId, meta_agua_ml: settings.waterGoalMl, meta_ayuno_horas: settings.fastGoalHours
+  });
+}
+
+async function loadActiveFast(){
+  const { data } = await sb.from('ritmo_ayunos')
+    .select('*').eq('user_id', userId).is('fin', null)
+    .order('inicio', { ascending:false }).limit(1);
+  if(data && data.length){
+    fastState = { active:true, startedAt: new Date(data[0].inicio).getTime(), id: data[0].id };
+  } else {
+    fastState = { active:false, startedAt:null, id:null };
+  }
+}
+
+async function loadWeekHistory(){
+  const since = new Date(); since.setDate(since.getDate()-7);
+  const { data } = await sb.from('ritmo_ayunos')
+    .select('*').eq('user_id', userId)
+    .gte('inicio', since.toISOString()).not('fin','is',null)
+    .order('inicio');
+  fastHistory = (data||[]).map(r=>({
+    date: r.inicio.slice(0,10),
+    hours: (new Date(r.fin) - new Date(r.inicio)) / 3600000,
+    goalHours: Number(r.meta_horas)
+  }));
+}
+
+async function loadTodayWater(){
+  const key = todayKey();
+  const { data } = await sb.from('ritmo_agua')
+    .select('*').eq('user_id', userId).eq('fecha', key).order('hora');
+  waterLog = { [key]: (data||[]).map(r=>({ id:r.id, ml:r.ml })) };
 }
 
 function fmtHM(ms){
@@ -400,7 +562,7 @@ function renderFast(){
 function renderWater(){
   const key = todayKey();
   const entries = waterLog[key] || [];
-  const total = entries.reduce((a,b)=>a+b,0);
+  const total = entries.reduce((a,b)=>a+b.ml,0);
   $('#waterCurrent').textContent = total;
   $('#waterGoalLabel').textContent = settings.waterGoalMl;
   $('#waterGoalVal').textContent = settings.waterGoalMl;
@@ -437,43 +599,57 @@ function renderWeek(){
 function renderAll(){ renderFast(); renderWater(); renderWeek(); }
 
 // --- Fast toggle ---
-$('#fastToggleBtn').addEventListener('click', ()=>{
-  if(fastState.active){
-    const elapsedH = (Date.now() - fastState.startedAt) / 3600000;
-    const key = todayKey();
-    const existing = fastHistory.find(h=>h.date===key);
-    if(existing){ existing.hours = Math.max(existing.hours, elapsedH); }
-    else { fastHistory.push({date:key, hours: elapsedH, goalHours: settings.fastGoalHours}); }
-    if(fastHistory.length > 30) fastHistory = fastHistory.slice(-30);
-    fastState = {active:false, startedAt:null};
-  } else {
-    fastState = {active:true, startedAt: Date.now()};
-  }
-  save(); renderAll();
+$('#fastToggleBtn').addEventListener('click', async ()=>{
+  const btn = $('#fastToggleBtn');
+  btn.disabled = true;
+  try{
+    if(fastState.active){
+      await sb.from('ritmo_ayunos').update({ fin: new Date().toISOString() }).eq('id', fastState.id);
+      fastState = { active:false, startedAt:null, id:null };
+      await loadWeekHistory();
+    } else {
+      const { data, error } = await sb.from('ritmo_ayunos')
+        .insert({ user_id:userId, inicio: new Date().toISOString(), meta_horas: settings.fastGoalHours })
+        .select().single();
+      if(error) throw error;
+      fastState = { active:true, startedAt: new Date(data.inicio).getTime(), id: data.id };
+    }
+    renderAll();
+  } catch(err){ alert('No se pudo guardar: ' + err.message); }
+  btn.disabled = false;
 });
 
-$('#goalRow').addEventListener('click', e=>{
+$('#goalRow').addEventListener('click', async e=>{
   const chip = e.target.closest('.goal-chip');
   if(!chip) return;
   settings.fastGoalHours = Number(chip.dataset.h);
-  save(); renderFast();
+  renderFast();
+  await saveConfig();
 });
 
 // --- Water ---
 $$('.water-btn').forEach(b=>{
-  b.addEventListener('click', ()=>{
+  b.addEventListener('click', async ()=>{
     const key = todayKey();
+    const ml = Number(b.dataset.ml);
+    const { data, error } = await sb.from('ritmo_agua')
+      .insert({ user_id:userId, fecha:key, ml, hora:new Date().toISOString() })
+      .select().single();
+    if(error){ alert('No se pudo guardar: ' + error.message); return; }
     if(!waterLog[key]) waterLog[key] = [];
-    waterLog[key].push(Number(b.dataset.ml));
-    save(); renderWater();
+    waterLog[key].push({ id:data.id, ml:data.ml });
+    renderWater();
   });
 });
-$('#waterUndo').addEventListener('click', ()=>{
+$('#waterUndo').addEventListener('click', async ()=>{
   const key = todayKey();
-  if(waterLog[key] && waterLog[key].length){
-    waterLog[key].pop();
-    save(); renderWater();
-  }
+  const entries = waterLog[key];
+  if(!entries || !entries.length) return;
+  const last = entries[entries.length-1];
+  const { error } = await sb.from('ritmo_agua').delete().eq('id', last.id);
+  if(error){ alert('No se pudo deshacer: ' + error.message); return; }
+  entries.pop();
+  renderWater();
 });
 
 // --- Modal / settings ---
@@ -484,13 +660,12 @@ $('#gearBtn').addEventListener('click', ()=>{
 });
 $('#modalClose').addEventListener('click', ()=> $('#modalBackdrop').classList.remove('open'));
 $('#modalBackdrop').addEventListener('click', e=>{ if(e.target.id==='modalBackdrop') $('#modalBackdrop').classList.remove('open'); });
-$('#waterPlus').addEventListener('click', ()=>{ settings.waterGoalMl += 250; save(); $('#waterGoalVal').textContent = settings.waterGoalMl; renderWater(); });
-$('#waterMinus').addEventListener('click', ()=>{ settings.waterGoalMl = Math.max(250, settings.waterGoalMl-250); save(); $('#waterGoalVal').textContent = settings.waterGoalMl; renderWater(); });
-$('#fastPlus').addEventListener('click', ()=>{ settings.fastGoalHours = Math.min(48, settings.fastGoalHours+1); save(); $('#fastGoalVal').textContent = settings.fastGoalHours; renderFast(); });
-$('#fastMinus').addEventListener('click', ()=>{ settings.fastGoalHours = Math.max(1, settings.fastGoalHours-1); save(); $('#fastGoalVal').textContent = settings.fastGoalHours; renderFast(); });
+$('#waterPlus').addEventListener('click', async ()=>{ settings.waterGoalMl += 250; $('#waterGoalVal').textContent = settings.waterGoalMl; renderWater(); await saveConfig(); });
+$('#waterMinus').addEventListener('click', async ()=>{ settings.waterGoalMl = Math.max(250, settings.waterGoalMl-250); $('#waterGoalVal').textContent = settings.waterGoalMl; renderWater(); await saveConfig(); });
+$('#fastPlus').addEventListener('click', async ()=>{ settings.fastGoalHours = Math.min(48, settings.fastGoalHours+1); $('#fastGoalVal').textContent = settings.fastGoalHours; renderFast(); await saveConfig(); });
+$('#fastMinus').addEventListener('click', async ()=>{ settings.fastGoalHours = Math.max(1, settings.fastGoalHours-1); $('#fastGoalVal').textContent = settings.fastGoalHours; renderFast(); await saveConfig(); });
 
-renderAll();
-setInterval(()=>{ if(fastState.active) renderFast(); }, 1000*30);
+initAuth();
 
 // --- PWA service worker ---
 if('serviceWorker' in navigator){
