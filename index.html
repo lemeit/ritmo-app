@@ -155,6 +155,21 @@
     border-color:var(--fast);
     color:var(--fast);
   }
+  .edit-link{
+    text-align:center; margin-top:12px;
+    font-size:12px; color:var(--text-faint);
+    cursor:pointer; text-decoration:underline;
+  }
+  .dt-input{
+    width:100%; padding:12px 14px; border-radius:12px;
+    background:var(--surface-2); border:1px solid var(--border);
+    color:var(--text); font-family:'JetBrains Mono',monospace; font-size:14px;
+  }
+  .section-title{
+    font-size:12px; text-transform:uppercase; letter-spacing:0.08em;
+    color:var(--text-dim); font-weight:700; margin:0 0 14px;
+  }
+  .section-sep{ border-top:1px solid var(--border); padding-top:18px; margin-top:22px; }
 
   /* --- Water card --- */
   .water-card .row-top{
@@ -338,6 +353,7 @@
       <div class="goal-chip mono" data-h="20">20:4</div>
       <div class="goal-chip mono" data-h="24">24h</div>
     </div>
+    <div class="edit-link" id="editFastBtn">✎ Editar horario</div>
   </div>
 
   <div class="card water-card">
@@ -381,6 +397,49 @@
     </div>
     <button class="modal-close" id="modalClose">Listo</button>
     <div id="logoutRow"><button id="logoutBtn">Cerrar sesión</button></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="editFastBackdrop">
+  <div class="modal">
+    <h2>Editar horario de ayuno</h2>
+
+    <div id="editActiveSection" class="hidden">
+      <div class="section-title">Ayuno en curso</div>
+      <div class="field">
+        <label>Inicio</label>
+        <input type="datetime-local" id="editActiveStart" class="dt-input">
+      </div>
+      <button class="modal-close" id="saveActiveStart">Guardar inicio</button>
+    </div>
+
+    <div id="editLastSection" class="hidden section-sep">
+      <div class="section-title">Último ayuno registrado</div>
+      <div class="field">
+        <label>Inicio</label>
+        <input type="datetime-local" id="editLastStart" class="dt-input">
+      </div>
+      <div class="field">
+        <label>Fin</label>
+        <input type="datetime-local" id="editLastEnd" class="dt-input">
+      </div>
+      <button class="modal-close" id="saveLastFast">Guardar cambios</button>
+    </div>
+
+    <div class="section-sep">
+      <div class="section-title">Cargar ayuno manual</div>
+      <div class="field">
+        <label>Inicio</label>
+        <input type="datetime-local" id="manualStart" class="dt-input">
+      </div>
+      <div class="field">
+        <label>Fin</label>
+        <input type="datetime-local" id="manualEnd" class="dt-input">
+      </div>
+      <button class="modal-close" id="saveManualFast">Agregar ayuno</button>
+    </div>
+
+    <button class="btn btn-eat" id="editFastClose" style="width:100%; margin-top:16px;">Cerrar</button>
   </div>
 </div>
 
@@ -464,7 +523,15 @@ $('#logoutBtn').addEventListener('click', async ()=>{
 
 // ---------- Data layer (Supabase) ----------
 async function loadAll(){
-  await Promise.all([loadConfig(), loadActiveFast(), loadWeekHistory(), loadTodayWater()]);
+  await Promise.all([loadConfig(), loadActiveFast(), loadWeekHistory(), loadTodayWater(), loadLastCompletedFast()]);
+}
+
+let lastCompletedFast = null;
+async function loadLastCompletedFast(){
+  const { data } = await sb.from('ritmo_ayunos')
+    .select('*').eq('user_id', userId).not('fin','is',null)
+    .order('fin', { ascending:false }).limit(1);
+  lastCompletedFast = (data && data.length) ? data[0] : null;
 }
 
 async function loadConfig(){
@@ -670,6 +737,74 @@ $('#fastPlus').addEventListener('click', async ()=>{ settings.fastGoalHours = Ma
 $('#fastMinus').addEventListener('click', async ()=>{ settings.fastGoalHours = Math.max(1, settings.fastGoalHours-1); $('#fastGoalVal').textContent = settings.fastGoalHours; renderFast(); await saveConfig(); });
 
 initAuth();
+
+// --- Editar horario de ayuno ---
+function toLocalInput(iso){
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function fromLocalInput(val){
+  return new Date(val).toISOString();
+}
+
+$('#editFastBtn').addEventListener('click', ()=>{
+  if(fastState.active){
+    $('#editActiveSection').classList.remove('hidden');
+    $('#editActiveStart').value = toLocalInput(new Date(fastState.startedAt).toISOString());
+  } else {
+    $('#editActiveSection').classList.add('hidden');
+  }
+  if(lastCompletedFast){
+    $('#editLastSection').classList.remove('hidden');
+    $('#editLastStart').value = toLocalInput(lastCompletedFast.inicio);
+    $('#editLastEnd').value = toLocalInput(lastCompletedFast.fin);
+  } else {
+    $('#editLastSection').classList.add('hidden');
+  }
+  const nowLocal = toLocalInput(new Date().toISOString());
+  $('#manualStart').value = nowLocal;
+  $('#manualEnd').value = nowLocal;
+  $('#editFastBackdrop').classList.add('open');
+});
+$('#editFastClose').addEventListener('click', ()=> $('#editFastBackdrop').classList.remove('open'));
+$('#editFastBackdrop').addEventListener('click', e=>{ if(e.target.id==='editFastBackdrop') $('#editFastBackdrop').classList.remove('open'); });
+
+$('#saveActiveStart').addEventListener('click', async ()=>{
+  const iso = fromLocalInput($('#editActiveStart').value);
+  if(new Date(iso) > new Date()){ alert('El inicio no puede ser en el futuro'); return; }
+  const { error } = await sb.from('ritmo_ayunos').update({ inicio: iso }).eq('id', fastState.id);
+  if(error){ alert('No se pudo guardar: ' + error.message); return; }
+  fastState.startedAt = new Date(iso).getTime();
+  renderFast();
+  $('#editFastBackdrop').classList.remove('open');
+});
+
+$('#saveLastFast').addEventListener('click', async ()=>{
+  const inicio = fromLocalInput($('#editLastStart').value);
+  const fin = fromLocalInput($('#editLastEnd').value);
+  if(new Date(fin) <= new Date(inicio)){ alert('El fin tiene que ser posterior al inicio'); return; }
+  const { error } = await sb.from('ritmo_ayunos').update({ inicio, fin }).eq('id', lastCompletedFast.id);
+  if(error){ alert('No se pudo guardar: ' + error.message); return; }
+  await loadLastCompletedFast();
+  await loadWeekHistory();
+  renderWeek();
+  $('#editFastBackdrop').classList.remove('open');
+});
+
+$('#saveManualFast').addEventListener('click', async ()=>{
+  const inicio = fromLocalInput($('#manualStart').value);
+  const fin = fromLocalInput($('#manualEnd').value);
+  if(new Date(fin) <= new Date(inicio)){ alert('El fin tiene que ser posterior al inicio'); return; }
+  if(new Date(fin) > new Date()){ alert('El fin no puede ser en el futuro'); return; }
+  const { error } = await sb.from('ritmo_ayunos')
+    .insert({ user_id:userId, inicio, fin, meta_horas: settings.fastGoalHours });
+  if(error){ alert('No se pudo guardar: ' + error.message); return; }
+  await loadLastCompletedFast();
+  await loadWeekHistory();
+  renderWeek();
+  $('#editFastBackdrop').classList.remove('open');
+});
 
 // --- PWA service worker ---
 if('serviceWorker' in navigator){
