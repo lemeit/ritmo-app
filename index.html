@@ -391,7 +391,13 @@ const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
 const todayKey = () => new Date().toISOString().slice(0,10);
 
-const sb = supabase.createClient(window.RITMO_CONFIG.SUPABASE_URL, window.RITMO_CONFIG.SUPABASE_ANON_KEY);
+const sb = supabase.createClient(window.RITMO_CONFIG.SUPABASE_URL, window.RITMO_CONFIG.SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,      // guarda la sesión en localStorage
+    autoRefreshToken: true,    // la renueva sola antes de que expire
+    detectSessionInUrl: true,  // procesa el token que llega del magic link
+  }
+});
 
 const DEFAULTS = { waterGoalMl: 2000, fastGoalHours: 16 };
 let settings = {...DEFAULTS};
