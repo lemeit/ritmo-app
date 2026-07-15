@@ -4,9 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Ritmo — Ayuno & Agua</title>
-<meta name="theme-color" content="#0B0E13">
+<meta name="theme-color" content="#F7F6F2">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Ritmo">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -16,19 +17,19 @@
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0B0E13;
-    --surface:#141922;
-    --surface-2:#1C232F;
-    --border:#242C3A;
-    --text:#E8EAED;
-    --text-dim:#8891A0;
-    --text-faint:#4E5768;
-    --fast:#8B7FFF;
-    --fast-dim:#8B7FFF33;
-    --water:#35C2E8;
-    --water-dim:#35C2E833;
-    --eat:#4ADE80;
-    --danger:#FF6B6B;
+    --bg:#F7F6F2;
+    --surface:#FFFFFF;
+    --surface-2:#F0EFE9;
+    --border:#E3E1D8;
+    --text:#1C2420;
+    --text-dim:#6B7268;
+    --text-faint:#A3A99E;
+    --fast:#2A7A6E;
+    --fast-dim:#2A7A6E1A;
+    --water:#D85A30;
+    --water-dim:#D85A301A;
+    --eat:#2A7A6E;
+    --danger:#C4432B;
     --radius:20px;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
@@ -134,7 +135,7 @@
     transition:transform .08s ease;
   }
   .btn:active{transform:scale(0.97);}
-  .btn-fast{background:var(--fast); color:#0B0E13;}
+  .btn-fast{background:var(--fast); color:#FFFFFF;}
   .btn-eat{background:var(--surface-2); color:var(--text); border:1px solid var(--border);}
   .goal-row{
     display:flex; gap:8px; margin-top:14px; width:100%;
@@ -179,7 +180,7 @@
   }
   .water-fill{
     height:100%;
-    background:linear-gradient(90deg, var(--water), #5EE0FF);
+    background:linear-gradient(90deg, var(--water), #F0955F);
     width:0%;
     transition:width .35s ease;
     border-radius:999px;
@@ -252,7 +253,7 @@
   }
   .modal-close{
     width:100%; padding:14px; border:none; border-radius:14px;
-    background:var(--fast); color:#0B0E13; font-weight:700; font-size:15px;
+    background:var(--fast); color:#FFFFFF; font-weight:700; font-size:15px;
     cursor:pointer; margin-top:6px;
   }
 
